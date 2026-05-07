@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Mitarbeiter-Portal · Auftragsplanung Freudig</title>
+<link rel="stylesheet" href="style.css"/>
+<style>
+html,body{height:100%;overflow:hidden;margin:0;}
+body{background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+
+/* Login-Bildschirm */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.login-card{background:white;border-radius:14px;padding:36px 40px;width:min(420px,95vw);box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.login-logo{text-align:center;font-size:42px;margin-bottom:8px;}
+.login-title{text-align:center;font-size:20px;font-weight:800;color:#1e293b;margin-bottom:4px;}
+.login-subtitle{text-align:center;font-size:12px;color:#64748b;margin-bottom:24px;}
+.login-label{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block;}
+.login-input{width:100%;padding:11px 13px;font-size:14px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit;box-sizing:border-box;transition:border-color .15s;}
+.login-input:focus{border-color:#3b82f6;}
+.login-btn{width:100%;padding:12px;background:#3b82f6;color:white;border:none;border-radius:8px;font-weight:800;font-size:14px;cursor:pointer;margin-top:14px;transition:background .15s;}
+.login-btn:hover:not(:disabled){background:#2563eb;}
+.login-btn:disabled{background:#94a3b8;cursor:wait;}
+.login-info{padding:10px 12px;border-radius:6px;font-size:11px;margin-top:14px;}
+.login-info.error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;}
+.login-info.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;}
+.login-info.note{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;}
+.login-foot{text-align:center;font-size:10px;color:#94a3b8;margin-top:18px;}
+
+/* App-Hauptseite */
+.m-page{display:flex;flex-direction:column;height:100vh;background:#f1f5f9;}
+.tb{height:46px;display:flex;align-items:center;padding:0 14px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0;gap:10px;}
+.tb-title{font-size:15px;font-weight:800;color:#1e293b;}
+.tb-user{margin-left:auto;display:flex;align-items:center;gap:6px;padding:5px 10px;background:#f1f5f9;border-radius:14px;border:1px solid #e2e8f0;font-size:11px;}
+.tb-logout{background:none;border:none;cursor:pointer;color:#94a3b8;font-size:13px;padding:2px 4px;}
+.tb-logout:hover{color:#dc2626;}
+
+.m-main{flex:1;overflow-y:auto;padding:24px;}
+.m-content{max-width:780px;margin:0 auto;}
+
+.m-hero{display:flex;align-items:center;gap:16px;padding:18px 22px;background:linear-gradient(135deg,#fff,#f8fafc);border-radius:12px;border:1px solid #e2e8f0;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.m-hero-av{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:18px;font-weight:800;flex-shrink:0;}
+.m-hero-name{font-size:18px;font-weight:800;color:#1e293b;line-height:1.2;}
+.m-hero-meta{font-size:11px;color:#64748b;margin-top:3px;}
+.m-hero-badge{display:inline-block;padding:3px 9px;border-radius:10px;font-size:9px;font-weight:800;color:white;text-transform:uppercase;letter-spacing:.5px;margin-top:5px;}
+
+.m-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;}
+.m-stat{background:white;padding:11px 14px;border-radius:10px;border:1px solid #e2e8f0;text-align:center;}
+.m-stat-val{font-size:22px;font-weight:800;color:#1e293b;line-height:1;}
+.m-stat-lbl{font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-top:4px;}
+
+.m-kw{margin-bottom:14px;}
+.m-kw-hdr{font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;padding:8px 4px;display:flex;align-items:center;gap:6px;}
+.m-job{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:13px 16px;margin-bottom:8px;transition:all .15s;}
+.m-job.laufend{border-color:#22c55e;border-width:2px;background:linear-gradient(to right,#f0fdf4 0%,white 30%);}
+.m-job-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.m-job-nr{font-family:monospace;font-size:13px;font-weight:800;color:#1e293b;background:#f1f5f9;padding:2px 7px;border-radius:5px;}
+.m-job-kunde{font-size:13px;font-weight:700;color:#1e293b;}
+.m-job-desc{font-size:11px;color:#64748b;margin-top:3px;}
+.m-job-dates{font-size:11px;color:#475569;margin-top:4px;}
+.m-job-vehicle{font-size:11px;color:#166534;background:#f0fdf4;padding:6px 10px;border-radius:6px;border:1px solid #bbf7d0;margin-top:8px;display:flex;align-items:center;gap:8px;}
+.m-job-peers{font-size:11px;color:#475569;margin-top:6px;padding-top:6px;border-top:1px dashed #e2e8f0;}
+
+.m-badge{font-size:9px;padding:2px 7px;border-radius:9px;font-weight:700;}
+.m-badge.laufend{background:#22c55e;color:white;}
+.m-badge.bald{background:#fef3c7;color:#92400e;}
+
+.m-abs{display:flex;gap:10px;align-items:center;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 13px;margin-bottom:6px;}
+.m-abs-icon{font-size:20px;}
+.m-abs-type{font-size:12px;font-weight:700;color:#92400e;}
+.m-abs-dates{font-size:10px;color:#78350f;margin-top:1px;}
+
+.m-empty{text-align:center;padding:40px 20px;color:#64748b;}
+.m-empty-icon{font-size:32px;margin-bottom:8px;}
+.m-empty-text{font-size:12px;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const SB_URL = 'https://rgzendkvoeaurfbymkcy.supabase.co'
+const SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnemVuZGt2b2VhdXJmYnlta2N5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNTQxMzksImV4cCI6MjA5MTkzMDEzOX0.h8cqR73GtV_J56VvdtfeJWJIjziLv3x_AHkZ0sJIZwU'
+
+const supabase = createClient(SB_URL, SB_ANON_KEY, {
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
+})
+
+const DEPT={Planung:'#3b82f6',Fertigung:'#f59e0b',Lehrling:'#8b5cf6',Fenster:'#06b6d4',Büro:'#64748b'}
+const WD=['So','Mo','Di','Mi','Do','Fr','Sa']
+const MOL=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+const ABS_ICON={Urlaub:'🏖️',Krank:'🤒',Fortbildung:'📚',Elternzeit:'👶',Sonstige:'📝'}
+
+const toMs=s=>new Date(s+'T00:00:00').getTime()
+const toStr=ms=>{const d=new Date(ms);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+const addD=(s,n)=>toStr(toMs(s)+n*86400000)
+const today=toStr(Date.now())
+const getKW=s=>{const d=new Date(toMs(s));d.setHours(12);d.setDate(d.getDate()+4-(d.getDay()||7));return Math.ceil(((d-new Date(d.getFullYear(),0,1))/86400000+1)/7)}
+const fmtS=s=>{if(!s)return'';const d=new Date(toMs(s));return`${WD[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.`}
+const ini=(v,n)=>(v?v[0]:'')+(n?n[0]:'')
+const col=e=>e.farbe||DEPT[e.bereich]||'#64748b'
+const escapeHtml=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+
+// ════════════════════════════════════════════════════════════════════
+// LOGIN-BILDSCHIRM
+// ════════════════════════════════════════════════════════════════════
+function renderLogin(state={}) {
+  const root = document.getElementById('root')
+  const {email='', error=null, success=null, busy=false} = state
+
+  root.innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-logo">◈</div>
+        <div class="login-title">Mitarbeiter-Portal</div>
+        <div class="login-subtitle">Auftragsplanung Freudig</div>
+
+        <label class="login-label">E-Mail-Adresse</label>
+        <input type="email" id="email" class="login-input" autofocus
+          value="${escapeHtml(email)}" placeholder="vorname.nachname@…"
+          ${busy?'disabled':''}/>
+
+        <button id="loginBtn" class="login-btn" ${busy?'disabled':''}>
+          ${busy ? 'Sende Login-Link…' : 'Login-Link per E-Mail anfordern'}
+        </button>
+
+        ${error ? `<div class="login-info error">⚠ ${escapeHtml(error)}</div>` : ''}
+        ${success ? `<div class="login-info success">✓ ${escapeHtml(success)}</div>` : ''}
+
+        ${!error && !success ? `<div class="login-info note">
+          Du erhältst einen Login-Link per E-Mail. Klicke darauf, um eingeloggt zu werden — kein Passwort nötig.
+        </div>` : ''}
+
+        <div class="login-foot">Auftragsplanung Freudig · Mitarbeiter-Portal</div>
+      </div>
+    </div>
+  `
+
+  document.getElementById('loginBtn').addEventListener('click', doLogin)
+  document.getElementById('email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin()
+  })
+}
+
+async function doLogin() {
+  const email = document.getElementById('email').value.trim().toLowerCase()
+  if (!email || !email.includes('@')) {
+    renderLogin({email, error: 'Bitte gültige E-Mail-Adresse eingeben'})
+    return
+  }
+  renderLogin({email, busy: true})
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: window.location.origin + window.location.pathname,
+      shouldCreateUser: true,
+    },
+  })
+
+  if (error) {
+    renderLogin({email, error: error.message})
+  } else {
+    renderLogin({email, success: 'Login-Link wurde an deine E-Mail gesendet. Bitte prüfe dein Postfach.'})
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// HAUPTANSICHT (eingeloggt)
+// ════════════════════════════════════════════════════════════════════
+async function renderApp() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) { renderLogin(); return }
+
+  const { data: emps, error: e1 } = await supabase.from('employees').select('*')
+  if (e1 || !emps || !emps.length) {
+    document.getElementById('root').innerHTML = `
+      <div class="m-page">
+        <div class="tb">
+          <span class="tb-title">⚠ Kein Profil verknüpft</span>
+          <button class="tb-logout" onclick="window.appLogout()" style="margin-left:auto">Abmelden</button>
+        </div>
+        <div class="m-main">
+          <div class="m-empty">
+            <div class="m-empty-icon">⚠️</div>
+            <div class="m-empty-text" style="max-width:400px;margin:0 auto;line-height:1.6;">
+              Es konnte kein Mitarbeiter-Profil zu deiner E-Mail-Adresse <strong>${escapeHtml(user.email)}</strong> gefunden werden.
+              Bitte melde dich beim Administrator, damit deine E-Mail in den Stammdaten hinterlegt wird.
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+    return
+  }
+
+  const me = emps.find(e => e.auth_user_id === user.id) || emps[0]
+  const [{data:projs}, {data:asses}, {data:abss}, {data:vehs}] = await Promise.all([
+    supabase.from('projects').select('*'),
+    supabase.from('assignments').select('*').eq('is_placeholder', false),
+    supabase.from('absences').select('*'),
+    supabase.from('vehicles').select('*'),
+  ])
+
+  const ALL_EMPS = emps || []
+  const ALL_PROJ = projs || []
+  const ALL_ASS = asses || []
+  const ALL_ABS = abss || []
+  const ALL_VEH = vehs || []
+
+  const fromDate = addD(today, -14)
+  // NUR eigene Assignments für die Hauptansicht
+  const myAss = ALL_ASS.filter(a => a.employee_id === me.id && a.datum_bis >= fromDate)
+                       .sort((a,b) => a.datum_von.localeCompare(b.datum_von))
+  const myAbs = ALL_ABS.filter(a => a.employee_id === me.id && a.datum_bis >= fromDate)
+                       .sort((a,b) => a.datum_von.localeCompare(b.datum_von))
+
+  const c = col(me)
+  const k = me.kuerzel || ini(me.vorname, me.nachname)
+
+  const projekte = new Set(myAss.map(a => a.project_id)).size
+  const wochen = myAss.reduce((s,a) => {
+    const diff = Math.ceil((toMs(a.datum_bis) - toMs(a.datum_von)) / 86400000 / 7)
+    return s + Math.max(1, diff)
+  }, 0)
+  const laufend = myAss.filter(a => a.datum_von <= today && a.datum_bis >= today).length
+
+  let html = `
+    <div class="m-page">
+      <div class="tb">
+        <span class="tb-title">◈ Mein Bereich</span>
+        <div class="tb-user">
+          <div style="width:6px;height:6px;border-radius:50%;background:${c}"></div>
+          <span style="font-weight:700;color:#475569">${escapeHtml(me.vorname)} ${escapeHtml(me.nachname)}</span>
+          <button class="tb-logout" onclick="window.appLogout()" title="Abmelden">⏻</button>
+        </div>
+      </div>
+      <div class="m-main">
+        <div class="m-content">
+          <div class="m-hero">
+            <div class="m-hero-av" style="background:${c}">${escapeHtml(k)}</div>
+            <div style="flex:1;min-width:0;">
+              <div class="m-hero-name">${escapeHtml(me.vorname)} ${escapeHtml(me.nachname)}</div>
+              <div class="m-hero-meta">${escapeHtml(me.nr || '–')} · ${escapeHtml(me.bereich)}</div>
+              <span class="m-hero-badge" style="background:${c}">${escapeHtml(me.bereich)}</span>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Status</div>
+              <div style="font-size:12px;font-weight:700;color:${laufend ? '#22c55e' : '#64748b'};">
+                ${laufend ? '● Aktiv im Einsatz' : '● Verfügbar'}
+              </div>
+            </div>
+          </div>
+
+          <div class="m-stats">
+            <div class="m-stat"><div class="m-stat-val">${projekte}</div><div class="m-stat-lbl">Projekte</div></div>
+            <div class="m-stat"><div class="m-stat-val">${laufend}</div><div class="m-stat-lbl">Laufend</div></div>
+            <div class="m-stat"><div class="m-stat-val">${wochen}</div><div class="m-stat-lbl">Wochen ges.</div></div>
+            <div class="m-stat"><div class="m-stat-val">${myAbs.length}</div><div class="m-stat-lbl">Abwesenheiten</div></div>
+          </div>
+  `
+
+  const events = []
+  myAss.forEach(a => {
+    const p = ALL_PROJ.find(x => x.id === a.project_id)
+    events.push({type:'ass', a, p, kwDate:a.datum_von, kw:getKW(a.datum_von)})
+  })
+  myAbs.forEach(a => events.push({type:'abs', a, kwDate:a.datum_von, kw:getKW(a.datum_von)}))
+  events.sort((a,b) => a.kwDate.localeCompare(b.kwDate))
+
+  if (!events.length) {
+    html += `<div class="m-empty"><div class="m-empty-icon">📋</div><div class="m-empty-text">Keine Einsätze geplant</div></div>`
+  } else {
+    const groups = {}
+    events.forEach(ev => {
+      const yr = new Date(toMs(ev.kwDate)).getFullYear()
+      const key = `${yr}-${String(ev.kw).padStart(2,'0')}`
+      if (!groups[key]) groups[key] = {kw:ev.kw, yr, label:`KW ${ev.kw} · ${MOL[new Date(toMs(ev.kwDate)).getMonth()]} ${yr}`, items:[]}
+      groups[key].items.push(ev)
+    })
+
+    Object.values(groups).sort((a,b) => a.kw - b.kw).forEach(grp => {
+      html += `<div class="m-kw"><div class="m-kw-hdr">📅 <span>${escapeHtml(grp.label)}</span></div>`
+      grp.items.forEach(ev => {
+        if (ev.type === 'abs') {
+          const icon = ABS_ICON[ev.a.typ] || '📝'
+          html += `<div class="m-abs">
+            <div class="m-abs-icon">${icon}</div>
+            <div>
+              <div class="m-abs-type">${escapeHtml(ev.a.typ)}</div>
+              <div class="m-abs-dates">${fmtS(ev.a.datum_von)} – ${fmtS(ev.a.datum_bis)}</div>
+              ${ev.a.notiz ? `<div style="font-size:10px;color:#92400e;margin-top:2px">${escapeHtml(ev.a.notiz)}</div>` : ''}
+            </div>
+          </div>`
+        } else {
+          const a = ev.a, p = ev.p
+          const dc = DEPT[a.bereich] || '#64748b'
+          const isNow = a.datum_von <= today && a.datum_bis >= today
+          const isFut = a.datum_von > today
+          const daysLeft = isFut ? Math.ceil((toMs(a.datum_von) - toMs(today)) / 86400000) : 0
+
+          const co = [...new Set(ALL_ASS
+            .filter(x => x.project_id === a.project_id && x.employee_id !== me.id && !x.is_placeholder && x.datum_von <= a.datum_bis && x.datum_bis >= a.datum_von)
+            .map(x => {
+              const em = ALL_EMPS.find(e => e.id === x.employee_id)
+              return em ? `${em.vorname} ${em.nachname}` : null
+            })
+            .filter(Boolean))]
+
+          const fz = a.bereich === 'Montage' && a.fahrzeug_id
+            ? ALL_VEH.find(v => v.id === a.fahrzeug_id) : null
+
+          html += `<div class="m-job${isNow ? ' laufend' : ''}">
+            <div class="m-job-head">
+              <div style="min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                  <div class="m-job-nr">${escapeHtml(p?.nr || '–')}</div>
+                  <div class="m-job-kunde" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    ${escapeHtml(p?.kunde || p?.name || '–')}
+                  </div>
+                </div>
+                ${p?.beschreibung ? `<div class="m-job-desc">${escapeHtml(p.beschreibung)}</div>` : ''}
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
+                ${isNow ? `<span class="m-badge laufend">AKTUELL</span>` : ''}
+                ${isFut ? `<span class="m-badge bald">in ${daysLeft} Tagen</span>` : ''}
+                <span style="font-size:9px;padding:2px 7px;border-radius:9px;background:${dc}22;color:${dc};font-weight:700;">${escapeHtml(a.bereich)}</span>
+              </div>
+            </div>
+            <div class="m-job-dates">
+              <span style="font-weight:700;color:#475569">Von</span> ${fmtS(a.datum_von)}
+              <span style="color:#94a3b8;margin:0 4px">→</span>
+              <span style="font-weight:700;color:#475569">Bis</span> ${fmtS(a.datum_bis)}
+            </div>
+            ${a.bereich === 'Montage' ? `<div class="m-job-vehicle">
+              <span style="font-size:14px">🚐</span>
+              <span style="font-weight:700">${fz ? escapeHtml(fz.kennzeichen) : 'Kein Fahrzeug zugeordnet'}</span>
+              ${fz ? `<span style="color:#475569">· ${escapeHtml(fz.bezeichnung)}</span>` : ''}
+              ${fz?.typ ? `<span style="margin-left:auto;font-size:9px;background:#bbf7d0;color:#166534;padding:1px 5px;border-radius:3px;font-weight:700">${escapeHtml(fz.typ)}</span>` : ''}
+            </div>` : ''}
+            ${co.length ? `<div class="m-job-peers">👥 Mit: <strong>${co.map(escapeHtml).join(', ')}</strong></div>` : ''}
+          </div>`
+        }
+      })
+      html += '</div>'
+    })
+  }
+
+  html += `</div></div></div>`
+  document.getElementById('root').innerHTML = html
+}
+
+window.appLogout = async () => {
+  await supabase.auth.signOut()
+  renderLogin()
+}
+
+async function init() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) {
+    renderApp()
+  } else {
+    renderLogin()
+  }
+
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN') {
+      renderApp()
+    } else if (event === 'SIGNED_OUT') {
+      renderLogin()
+    }
+  })
+}
+
+init()
+</script>
+</body>
+</html>
