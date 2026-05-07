@@ -306,7 +306,7 @@ async function renderApp() {
             <div>
               <div class="m-abs-type">${escapeHtml(ev.a.typ)}</div>
               <div class="m-abs-dates">${fmtS(ev.a.datum_von)} – ${fmtS(ev.a.datum_bis)}</div>
-              ${ev.a.notiz ? `<div style="font-size:10px;color:#92400e;margin-top:2px">${escapeHtml(ev.a.notiz)}</div>` : ''}
+              ${ev.a.notiz && ev.a.notiz.trim().toLowerCase() !== ev.a.typ.trim().toLowerCase() ? `<div style="font-size:10px;color:#92400e;margin-top:2px">${escapeHtml(ev.a.notiz)}</div>` : ''}
             </div>
           </div>`
         } else {
