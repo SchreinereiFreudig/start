@@ -218,7 +218,7 @@ async function renderApp() {
   const ALL_ABS = abss || []
   const ALL_VEH = vehs || []
 
-  const fromDate = addD(today, -14)
+  const fromDate = today
   // NUR eigene Assignments für die Hauptansicht
   const myAss = ALL_ASS.filter(a => a.employee_id === me.id && a.datum_bis >= fromDate)
                        .sort((a,b) => a.datum_von.localeCompare(b.datum_von))
