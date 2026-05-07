@@ -317,10 +317,15 @@ async function renderApp() {
           const daysLeft = isFut ? Math.ceil((toMs(a.datum_von) - toMs(today)) / 86400000) : 0
           const bereichLabel = BEREICH_LABEL[a.bereich] || a.bereich
 
-          // Kollegen mit ihrem persönlichen Zeitraum
+          // Kollegen mit gleichem Bereich im selben Projekt + überschneidender Zeitraum
           const peerMap = new Map()
           ALL_ASS
-            .filter(x => x.project_id === a.project_id && x.employee_id !== me.id && !x.is_placeholder && x.datum_von <= a.datum_bis && x.datum_bis >= a.datum_von)
+            .filter(x =>
+              x.project_id === a.project_id &&
+              x.employee_id !== me.id &&
+              !x.is_placeholder &&
+              x.bereich === a.bereich &&
+              x.datum_von <= a.datum_bis && x.datum_bis >= a.datum_von)
             .forEach(x => {
               const em = ALL_EMPS.find(e => e.id === x.employee_id)
               if (!em) return
