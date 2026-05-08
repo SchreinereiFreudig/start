@@ -110,30 +110,23 @@ const fmtS=s=>{if(!s)return'';const d=new Date(toMs(s));return`${WD[d.getDay()]}
 const getDow=s=>new Date(toMs(s)).getDay()
 // MA arbeitet Freitags? (>=40h-Woche)
 const worksFr=emp=>!emp||(emp.kapazitaet||40)>=40
-// Bei Teilzeit-MA: wenn von ein Fr/Sa/So ist, auf nächsten Mo
-const adjVonForEmp=(von,emp)=>{
-  if(worksFr(emp))return von
-  const dow=getDow(von)
-  if(dow===5)return addD(von,3)
-  if(dow===6)return addD(von,2)
-  if(dow===0)return addD(von,1)
-  return von
+// Für Anzeige: Wochenenden IMMER ausgeklammert; Teilzeit-MAs zusätzlich ohne Freitag.
+const adjVonDisplay=(von,emp)=>{
+  let v=von
+  while(getDow(v)===6||getDow(v)===0)v=addD(v,1)
+  if(emp&&!worksFr(emp)&&getDow(v)===5)v=addD(v,3)
+  return v
 }
-// Bei Teilzeit-MA: wenn bis ein Fr/Sa/So ist, ziehe auf Donnerstag zurück
-const adjBisForEmp=(bis,emp)=>{
-  if(worksFr(emp))return bis
-  const dow=getDow(bis)
-  if(dow===5)return addD(bis,-1)
-  if(dow===6)return addD(bis,-2)
-  if(dow===0)return addD(bis,-3)
-  return bis
+const adjBisDisplay=(bis,emp)=>{
+  let b=bis
+  while(getDow(b)===6||getDow(b)===0)b=addD(b,-1)
+  if(emp&&!worksFr(emp)&&getDow(b)===5)b=addD(b,-1)
+  return b
 }
 // Aufsplittung in tatsächlich gearbeitete Perioden (Wochentag-Anpassung + Fehlzeiten ausgeschnitten)
-// emp: Mitarbeiter-Objekt, von/bis: Datum, abs: Array aller Abwesenheiten dieses MA
-// returns: [{von, bis}, ...]
 const splitRange=(von,bis,emp,allAbs)=>{
-  let segVon=adjVonForEmp(von,emp)
-  let segBis=adjBisForEmp(bis,emp)
+  let segVon=adjVonDisplay(von,emp)
+  let segBis=adjBisDisplay(bis,emp)
   if(segVon>segBis)return []
   const myAbs=(allAbs||[]).filter(ab=>ab.employee_id===emp.id&&ab.typ!=='Feiertag'&&ab.datum_bis>=segVon&&ab.datum_von<=segBis)
     .map(ab=>({von:ab.datum_von<segVon?segVon:ab.datum_von,bis:ab.datum_bis>segBis?segBis:ab.datum_bis}))
