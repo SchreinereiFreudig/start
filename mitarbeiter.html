@@ -107,6 +107,56 @@ const addD=(s,n)=>toStr(toMs(s)+n*86400000)
 const today=toStr(Date.now())
 const getKW=s=>{const d=new Date(toMs(s));d.setHours(12);d.setDate(d.getDate()+4-(d.getDay()||7));return Math.ceil(((d-new Date(d.getFullYear(),0,1))/86400000+1)/7)}
 const fmtS=s=>{if(!s)return'';const d=new Date(toMs(s));return`${WD[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.`}
+const getDow=s=>new Date(toMs(s)).getDay()
+// MA arbeitet Freitags? (>=40h-Woche)
+const worksFr=emp=>!emp||(emp.kapazitaet||40)>=40
+// Bei Teilzeit-MA: wenn von ein Fr/Sa/So ist, auf nächsten Mo
+const adjVonForEmp=(von,emp)=>{
+  if(worksFr(emp))return von
+  const dow=getDow(von)
+  if(dow===5)return addD(von,3)
+  if(dow===6)return addD(von,2)
+  if(dow===0)return addD(von,1)
+  return von
+}
+// Bei Teilzeit-MA: wenn bis ein Fr/Sa/So ist, ziehe auf Donnerstag zurück
+const adjBisForEmp=(bis,emp)=>{
+  if(worksFr(emp))return bis
+  const dow=getDow(bis)
+  if(dow===5)return addD(bis,-1)
+  if(dow===6)return addD(bis,-2)
+  if(dow===0)return addD(bis,-3)
+  return bis
+}
+// Aufsplittung in tatsächlich gearbeitete Perioden (Wochentag-Anpassung + Fehlzeiten ausgeschnitten)
+// emp: Mitarbeiter-Objekt, von/bis: Datum, abs: Array aller Abwesenheiten dieses MA
+// returns: [{von, bis}, ...]
+const splitRange=(von,bis,emp,allAbs)=>{
+  let segVon=adjVonForEmp(von,emp)
+  let segBis=adjBisForEmp(bis,emp)
+  if(segVon>segBis)return []
+  const myAbs=(allAbs||[]).filter(ab=>ab.employee_id===emp.id&&ab.typ!=='Feiertag'&&ab.datum_bis>=segVon&&ab.datum_von<=segBis)
+    .map(ab=>({von:ab.datum_von<segVon?segVon:ab.datum_von,bis:ab.datum_bis>segBis?segBis:ab.datum_bis}))
+    .sort((x,y)=>x.von<y.von?-1:1)
+  const ranges=[]
+  let cursor=segVon
+  myAbs.forEach(ab=>{
+    if(ab.von>cursor){
+      const ende=addD(ab.von,-1)
+      if(ende>=cursor)ranges.push({von:cursor,bis:ende})
+    }
+    cursor=ab.bis>=cursor?addD(ab.bis,1):cursor
+  })
+  if(cursor<=segBis)ranges.push({von:cursor,bis:segBis})
+  // Aufeinanderfolgende Bereiche fusionieren
+  const merged=[]
+  ranges.forEach(r=>{
+    const last=merged[merged.length-1]
+    if(last&&addD(last.bis,1)>=r.von){if(r.bis>last.bis)last.bis=r.bis}
+    else merged.push({...r})
+  })
+  return merged
+}
 const ini=(v,n)=>(v?v[0]:'')+(n?n[0]:'')
 const col=e=>e.farbe||DEPT[e.bereich]||'#64748b'
 const escapeHtml=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
@@ -318,7 +368,8 @@ async function renderApp() {
           const bereichLabel = BEREICH_LABEL[a.bereich] || a.bereich
 
           // Kollegen mit gleichem Bereich im selben Projekt + überschneidender Zeitraum
-          const peerMap = new Map()
+          // Pro Kollege: alle Assignments sammeln und durch Wochentag/Urlaub aufsplitten
+          const peerAssMap = new Map()
           ALL_ASS
             .filter(x =>
               x.project_id === a.project_id &&
@@ -327,18 +378,33 @@ async function renderApp() {
               x.bereich === a.bereich &&
               x.datum_von <= a.datum_bis && x.datum_bis >= a.datum_von)
             .forEach(x => {
-              const em = ALL_EMPS.find(e => e.id === x.employee_id)
-              if (!em) return
-              const key = em.id
-              if (!peerMap.has(key)) {
-                peerMap.set(key, {name:`${em.vorname} ${em.nachname}`, von:x.datum_von, bis:x.datum_bis})
-              } else {
-                const ex = peerMap.get(key)
-                if (x.datum_von < ex.von) ex.von = x.datum_von
-                if (x.datum_bis > ex.bis) ex.bis = x.datum_bis
-              }
+              const arr = peerAssMap.get(x.employee_id) || []
+              arr.push(x)
+              peerAssMap.set(x.employee_id, arr)
             })
-          const co = [...peerMap.values()].sort((x,y) => x.name.localeCompare(y.name))
+          const co = []
+          ;[...peerAssMap.entries()].forEach(([eid, arr]) => {
+            const em = ALL_EMPS.find(e => e.id === eid)
+            if (!em) return
+            // Pro Assignment splitten und alle Splits zusammenführen
+            const allRanges = []
+            arr.forEach(x => {
+              const segs = splitRange(x.datum_von, x.datum_bis, em, ALL_ABS)
+              segs.forEach(s => allRanges.push(s))
+            })
+            allRanges.sort((p,q) => p.von < q.von ? -1 : 1)
+            const merged = []
+            allRanges.forEach(r => {
+              const last = merged[merged.length-1]
+              if (last && addD(last.bis,1) >= r.von) {
+                if (r.bis > last.bis) last.bis = r.bis
+              } else merged.push({...r})
+            })
+            merged.forEach((r,i) => {
+              co.push({name: i===0 ? `${em.vorname} ${em.nachname}` : '', von: r.von, bis: r.bis, _sortName: `${em.vorname} ${em.nachname}`})
+            })
+          })
+          co.sort((x,y) => (x._sortName||x.name).localeCompare(y._sortName||y.name))
 
           const fz = a.fahrzeug_id ? ALL_VEH.find(v => v.id === a.fahrzeug_id) : null
 
@@ -360,9 +426,25 @@ async function renderApp() {
               </div>
             </div>
             <div class="m-job-dates">
-              <span style="font-weight:700;color:#475569">Von</span> ${fmtS(a.datum_von)}
-              <span style="color:#94a3b8;margin:0 4px">→</span>
-              <span style="font-weight:700;color:#475569">Bis</span> ${fmtS(a.datum_bis)}
+              ${(()=>{
+                const segs=splitRange(a.datum_von,a.datum_bis,me,ALL_ABS)
+                if(segs.length===0){
+                  return `<span style="font-weight:700;color:#475569">Von</span> ${fmtS(a.datum_von)}
+                  <span style="color:#94a3b8;margin:0 4px">→</span>
+                  <span style="font-weight:700;color:#475569">Bis</span> ${fmtS(a.datum_bis)}`
+                }
+                if(segs.length===1){
+                  return `<span style="font-weight:700;color:#475569">Von</span> ${fmtS(segs[0].von)}
+                  <span style="color:#94a3b8;margin:0 4px">→</span>
+                  <span style="font-weight:700;color:#475569">Bis</span> ${fmtS(segs[0].bis)}`
+                }
+                // Mehrere Segmente (durch Urlaub/Krankheit unterbrochen)
+                return segs.map((s,i)=>`<div${i>0?' style="margin-top:3px"':''}>
+                  <span style="font-weight:700;color:#475569">${i===0?'Von':'Weiter ab'}</span> ${fmtS(s.von)}
+                  <span style="color:#94a3b8;margin:0 4px">→</span>
+                  <span style="font-weight:700;color:#475569">Bis</span> ${fmtS(s.bis)}
+                </div>`).join('')
+              })()}
             </div>
             ${fz ? `<div class="m-job-vehicle">
               <span style="font-size:14px">🚐</span>
