@@ -453,7 +453,32 @@ async function renderApp() {
           })
           co.sort((x,y) => (x._sortName||x.name).localeCompare(y._sortName||y.name))
 
-          const fz = a.fahrzeug_id ? ALL_VEH.find(v => v.id === a.fahrzeug_id) : null
+          const co_renamed_marker_unused = null;
+
+          // Fahrzeuge: im neuen Datenmodell sind Fahrzeug-Datensätze eigenständig.
+          // Suche alle Fahrzeug-only-Datensätze für dieses Projekt+Bereich='Montage'
+          // die mit dem MA-Zeitraum überlappen.
+          let fzList = []
+          if (a.bereich === 'Montage') {
+            fzList = ALL_ASS.filter(x =>
+              x.project_id === a.project_id &&
+              x.bereich === 'Montage' &&
+              !x.employee_id &&
+              !x.is_placeholder &&
+              x.fahrzeug_id &&
+              x.datum_bis >= a.datum_von &&
+              x.datum_von <= a.datum_bis
+            ).sort((x,y) => x.datum_von.localeCompare(y.datum_von))
+              .map(fa => {
+                const v = ALL_VEH.find(vv => vv.id === fa.fahrzeug_id)
+                if (!v) return null
+                // Datum auf Schnittmenge mit MA-Zeitraum beschränken
+                const dvFrom = fa.datum_von < a.datum_von ? a.datum_von : fa.datum_von
+                const dvTo = fa.datum_bis > a.datum_bis ? a.datum_bis : fa.datum_bis
+                return { v, von: dvFrom, bis: dvTo }
+              })
+              .filter(Boolean)
+          }
 
           html += `<div class="m-job${isNow ? ' laufend' : ''}">
             <div class="m-job-head">
@@ -493,12 +518,15 @@ async function renderApp() {
                 </div>`).join('')
               })()}
             </div>
-            ${fz ? `<div class="m-job-vehicle">
+            ${fzList.length > 0 ? fzList.map((f, idx) => `<div class="m-job-vehicle"${idx > 0 ? ' style="margin-top:4px"' : ''}>
               <span style="font-size:14px">🚐</span>
-              <span style="font-weight:700">${escapeHtml(fz.kennzeichen || '–')}</span>
-              ${fz.bezeichnung ? `<span style="color:#475569">· ${escapeHtml(fz.bezeichnung)}</span>` : ''}
-              ${fz.typ ? `<span style="margin-left:auto;font-size:9px;background:#bbf7d0;color:#166534;padding:1px 5px;border-radius:3px;font-weight:700">${escapeHtml(fz.typ)}</span>` : ''}
-            </div>` : ''}
+              <span style="font-weight:700">${escapeHtml(f.v.kennzeichen || '–')}</span>
+              ${f.v.bezeichnung ? `<span style="color:#475569">· ${escapeHtml(f.v.bezeichnung)}</span>` : ''}
+              <span style="margin-left:auto;font-size:10px;color:#64748b;font-family:monospace">${fmtS(f.von)} – ${fmtS(f.bis)}</span>
+            </div>`).join('') : (a.bereich === 'Montage' ? `<div class="m-job-vehicle" style="background:#fef2f2;border-color:#fecaca">
+              <span style="font-size:14px">⚠</span>
+              <span style="font-weight:700;color:#dc2626">Kein Fahrzeug zugeordnet</span>
+            </div>` : '')}
             ${co.length ? `<div class="m-job-peers">
               <div class="m-job-peers-title">👥 Weitere Mitarbeiter</div>
               ${co.map(c => `<div class="m-job-peer-row">
