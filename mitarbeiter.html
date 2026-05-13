@@ -315,6 +315,44 @@ async function renderApp() {
   const c = col(me)
   const k = me.kuerzel || ini(me.vorname, me.nachname)
 
+  // Abwesenheiten zusammenfassen: aufeinanderfolgende Tage des gleichen Typs → ein Block
+  // Wochenenden (Sa/So) zwischen zwei Tagen werden als "zusammenhängend" gewertet
+  const mergeAbs = arr => {
+    if (!arr || !arr.length) return []
+    const byKey = new Map()
+    arr.forEach(a => {
+      const k = `${a.typ}|${(a.notiz||'').trim().toLowerCase()}`
+      const lst = byKey.get(k) || []
+      lst.push(a)
+      byKey.set(k, lst)
+    })
+    const merged = []
+    byKey.forEach(lst => {
+      const seen = new Set()
+      const unique = lst.filter(a => {
+        const k = a.datum_von + '|' + a.datum_bis
+        if (seen.has(k)) return false
+        seen.add(k); return true
+      }).sort((x,y) => x.datum_von.localeCompare(y.datum_von))
+      let cur = null
+      unique.forEach(a => {
+        if (!cur) { cur = {...a}; return }
+        let next = addD(cur.datum_bis, 1)
+        while (new Date(toMs(next)).getDay() === 6 || new Date(toMs(next)).getDay() === 0) {
+          next = addD(next, 1)
+        }
+        if (a.datum_von <= next) {
+          if (a.datum_bis > cur.datum_bis) cur.datum_bis = a.datum_bis
+        } else {
+          merged.push(cur); cur = {...a}
+        }
+      })
+      if (cur) merged.push(cur)
+    })
+    return merged
+  }
+  const myAbsMerged = mergeAbs(myAbs)
+
   const projekte = new Set(myAss.map(a => a.project_id)).size
   const wochen = myAss.reduce((s,a) => {
     const diff = Math.ceil((toMs(a.datum_bis) - toMs(a.datum_von)) / 86400000 / 7)
@@ -367,7 +405,7 @@ async function renderApp() {
             <div class="m-stat"><div class="m-stat-val">${projekte}</div><div class="m-stat-lbl">Projekte</div></div>
             <div class="m-stat"><div class="m-stat-val">${laufend}</div><div class="m-stat-lbl">Laufend</div></div>
             <div class="m-stat"><div class="m-stat-val">${wochen}</div><div class="m-stat-lbl">Wochen ges.</div></div>
-            <div class="m-stat"><div class="m-stat-val">${myAbs.length}</div><div class="m-stat-lbl">Abwesenheiten</div></div>
+            <div class="m-stat"><div class="m-stat-val">${myAbsMerged.length}</div><div class="m-stat-lbl">Abwesenheiten</div></div>
           </div>
   `
 
@@ -376,12 +414,8 @@ async function renderApp() {
     const p = ALL_PROJ.find(x => x.id === a.project_id)
     events.push({type:'ass', a, p, kwDate:a.datum_von, kw:getKW(a.datum_von)})
   })
-  // Abwesenheiten deduplizieren (gleicher Typ + gleicher Zeitraum nur einmal)
-  const seenAbs = new Set()
-  myAbs.forEach(a => {
-    const key = `${a.typ}|${a.datum_von}|${a.datum_bis}`
-    if (seenAbs.has(key)) return
-    seenAbs.add(key)
+  // Abwesenheiten (zusammengefasste Bereiche) als Events aufnehmen
+  myAbsMerged.forEach(a => {
     events.push({type:'abs', a, kwDate:a.datum_von, kw:getKW(a.datum_von)})
   })
   events.sort((a,b) => a.kwDate.localeCompare(b.kwDate))
@@ -406,7 +440,7 @@ async function renderApp() {
             <div class="m-abs-icon">${icon}</div>
             <div>
               <div class="m-abs-type">${escapeHtml(ev.a.typ)}</div>
-              <div class="m-abs-dates">${fmtS(ev.a.datum_von)} – ${fmtS(ev.a.datum_bis)}</div>
+              <div class="m-abs-dates">${ev.a.datum_von === ev.a.datum_bis ? fmtS(ev.a.datum_von) : `${fmtS(ev.a.datum_von)} – ${fmtS(ev.a.datum_bis)}`}</div>
               ${ev.a.notiz && ev.a.notiz.trim().toLowerCase() !== ev.a.typ.trim().toLowerCase() ? `<div style="font-size:10px;color:#92400e;margin-top:2px">${escapeHtml(ev.a.notiz)}</div>` : ''}
             </div>
           </div>`
