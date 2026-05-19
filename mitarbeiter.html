@@ -550,7 +550,62 @@ async function renderApp() {
     MY_VACATIONS = await loadMyVacations()
   }
 
-  const me = emps.find(e => e.auth_user_id === user.id) || emps[0]
+  // SICHERHEIT: Mitarbeiter strikt über auth_user_id zuordnen.
+  // KEIN Fallback auf emps[0] (würde fremde Daten zeigen → DSGVO/Daten-Leak).
+  // Im Demo-Mode greift der Check über die Demo-User-ID ganz normal.
+  const me = emps.find(e => e.auth_user_id === user.id)
+  if (!me) {
+    document.getElementById('root').innerHTML = `
+      <div class="m-page">
+        <div class="tb">
+          <span class="tb-title">⚠ Kein verknüpftes Profil</span>
+          <button class="tb-logout" onclick="window.appLogout()" style="margin-left:auto;font-size:13px;padding:6px 14px;background:#dc2626;color:white;border-radius:6px;border:none;cursor:pointer;font-weight:700;">Abmelden</button>
+        </div>
+        <div class="m-main">
+          <div class="m-empty">
+            <div class="m-empty-icon">⚠️</div>
+            <div class="m-empty-text" style="max-width:480px;margin:0 auto;line-height:1.6;">
+              Es konnte kein Mitarbeiter-Profil zu deiner E-Mail-Adresse <strong>${escapeHtml(user.email||'')}</strong> gefunden werden.
+              <br><br>
+              Bitte melde dich beim Administrator, damit deine E-Mail in den Stammdaten hinterlegt wird, und melde dich anschließend ab und neu an.
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+    return
+  }
+
+  // ZUSÄTZLICHE SICHERHEITSPRÜFUNG (nur im echten Modus, nicht im Demo-Mode):
+  // Auth-Email muss zur Employee-Email passen — schützt vor inkonsistenten Verknüpfungen.
+  if (!DEMO_MODE) {
+    const meEmailLower   = (me.email   || '').trim().toLowerCase()
+    const userEmailLower = (user.email || '').trim().toLowerCase()
+    if (!meEmailLower || meEmailLower !== userEmailLower) {
+      console.error('[SECURITY] Email-Mismatch:', {
+        employee: meEmailLower, auth: userEmailLower, auth_user_id: user.id
+      })
+      document.getElementById('root').innerHTML = `
+        <div class="m-page">
+          <div class="tb">
+            <span class="tb-title">⚠ Profil-Konflikt</span>
+            <button class="tb-logout" onclick="window.appLogout()" style="margin-left:auto;font-size:13px;padding:6px 14px;background:#dc2626;color:white;border-radius:6px;border:none;cursor:pointer;font-weight:700;">Abmelden</button>
+          </div>
+          <div class="m-main">
+            <div class="m-empty">
+              <div class="m-empty-icon">⚠️</div>
+              <div class="m-empty-text" style="max-width:480px;margin:0 auto;line-height:1.6;">
+                Deine Login-Adresse <strong>${escapeHtml(user.email||'')}</strong> stimmt nicht mit dem hinterlegten Mitarbeiter-Profil überein.
+                <br><br>
+                Bitte melde dich ab und mit der korrekten E-Mail-Adresse erneut an. Falls das Problem bestehen bleibt, wende dich an den Administrator.
+              </div>
+            </div>
+          </div>
+        </div>
+      `
+      return
+    }
+  }
 
   const ALL_EMPS = emps || []
   const ALL_PROJ = projs || []
