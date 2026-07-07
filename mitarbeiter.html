@@ -905,6 +905,21 @@ window.appSetTab = (tab) => {
 
 const STATUS_LBL = { open:'Offen', approved:'Genehmigt', rejected:'Abgelehnt', withdrawn:'Zurückgezogen' }
 
+// Werktage (Mo-Fr) eines Zeitraums, begrenzt auf ein Kalenderjahr
+function vacWorkdaysInYear(von, bis, year) {
+  const yStart = year + '-01-01', yEnd = year + '-12-31'
+  const s = (von < yStart ? yStart : von), e = (bis > yEnd ? yEnd : bis)
+  if (!s || !e || e < s) return 0
+  let count = 0
+  const cur = new Date(s + 'T00:00:00'), end = new Date(e + 'T00:00:00')
+  while (cur <= end) {
+    const dow = cur.getDay()
+    if (dow !== 0 && dow !== 6) count++
+    cur.setDate(cur.getDate() + 1)
+  }
+  return count
+}
+
 async function loadMyVacations() {
   const { data, error } = await supabase
     .from('vacation_requests')
@@ -916,6 +931,10 @@ async function loadMyVacations() {
 
 function renderVacationTab(me) {
   const todayStr = toStr(Date.now())
+  const curYear = new Date().getFullYear()
+  const approvedDays = MY_VACATIONS
+    .filter(v => v.status === 'approved')
+    .reduce((sum, v) => sum + vacWorkdaysInYear(v.datum_von, v.datum_bis, curYear), 0)
   const items = MY_VACATIONS.map(v => `
     <div class="m-vac-item">
       <span class="m-vac-item-status ${v.status}">${STATUS_LBL[v.status] || v.status}</span>
@@ -954,6 +973,10 @@ function renderVacationTab(me) {
 
     <div class="m-vac-card">
       <h3>📋 Meine Anträge</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#e8eed8;border-radius:8px;padding:10px 14px;margin-bottom:12px;">
+        <span style="font-size:13px;color:#3d5520;font-weight:600;">Genehmigte Urlaubstage ${curYear}<span style="font-size:11px;font-weight:500;color:#5d6b3f;"> (Werktage Mo–Fr)</span></span>
+        <span style="font-size:20px;font-weight:800;color:#3d5520;white-space:nowrap;">${approvedDays} <span style="font-size:12px;font-weight:600;">${approvedDays === 1 ? 'Tag' : 'Tage'}</span></span>
+      </div>
       ${items || '<div style="color:#a89e92;font-size:13px;text-align:center;padding:20px;">Noch keine Anträge gestellt.</div>'}
     </div>
   `
