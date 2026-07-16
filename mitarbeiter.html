@@ -935,7 +935,23 @@ function renderVacationTab(me) {
   const approvedDays = MY_VACATIONS
     .filter(v => v.status === 'approved')
     .reduce((sum, v) => sum + vacWorkdaysInYear(v.datum_von, v.datum_bis, curYear), 0)
-  const items = MY_VACATIONS.map(v => `
+
+  // Anträge in drei Sektionen aufteilen:
+  // 1. Kommend/laufend: datum_bis >= heute UND status != rejected
+  // 2. Vergangen: datum_bis < heute UND status != rejected
+  // 3. Abgelehnt: status == rejected (unabhängig vom Datum)
+  const heute = todayStr
+  const kommend = MY_VACATIONS
+    .filter(v => v.status !== 'rejected' && v.datum_bis >= heute)
+    .sort((a,b) => a.datum_von.localeCompare(b.datum_von))
+  const vergangen = MY_VACATIONS
+    .filter(v => v.status !== 'rejected' && v.datum_bis < heute)
+    .sort((a,b) => b.datum_von.localeCompare(a.datum_von))
+  const abgelehnt = MY_VACATIONS
+    .filter(v => v.status === 'rejected')
+    .sort((a,b) => b.datum_von.localeCompare(a.datum_von))
+
+  const renderVacItem = v => `
     <div class="m-vac-item">
       <span class="m-vac-item-status ${v.status}">${STATUS_LBL[v.status] || v.status}</span>
       <div style="flex:1;">
@@ -948,7 +964,22 @@ function renderVacationTab(me) {
       </div>
       ${v.status === 'open' ? `<button class="m-vac-item-action" onclick="window.appWithdrawVacation('${v.id}')">Zurückziehen</button>` : ''}
     </div>
-  `).join('')
+  `
+
+  const renderSection = (title, icon, arr) => {
+    if (!arr.length) return ''
+    return `
+      <div style="font-size:11px;font-weight:700;color:#7a6f5f;letter-spacing:.8px;text-transform:uppercase;margin:14px 0 6px 2px;">
+        ${icon} ${title}
+      </div>
+      ${arr.map(renderVacItem).join('')}
+    `
+  }
+
+  const items = MY_VACATIONS.length === 0 ? '' :
+    renderSection('Kommend', '📅', kommend) +
+    renderSection('Vergangen', '📁', vergangen) +
+    renderSection('Abgelehnt', '✕', abgelehnt)
 
   return `
     <div class="m-vac-card">
