@@ -715,17 +715,17 @@ async function renderApp() {
             <div class="m-stat"><div class="m-stat-val">${projekte}</div><div class="m-stat-lbl">Projekte</div></div>
             <div class="m-stat"><div class="m-stat-val">${laufend}</div><div class="m-stat-lbl">Laufend</div></div>
             <div class="m-stat"><div class="m-stat-val">${wochen}</div><div class="m-stat-lbl">Wochen ges.</div></div>
-            <div class="m-stat"><div class="m-stat-val">${myAbsMerged.length}</div><div class="m-stat-lbl">Abwesenheiten</div></div>
+            <div class="m-stat"><div class="m-stat-val">${myAbsKommend.length}</div><div class="m-stat-lbl">Abwesenheiten</div></div>
           </div>
   `
 
   const events = []
-  myAss.forEach(a => {
+  myAss.filter(a => a.datum_bis >= today).forEach(a => {
     const p = ALL_PROJ.find(x => x.id === a.project_id)
     events.push({type:'ass', a, p, kwDate:a.datum_von, kw:getKW(a.datum_von)})
   })
   // Abwesenheiten als Events aufnehmen (mergeAbs ist oben definiert)
-  myAbsMerged.forEach(a => {
+  myAbsKommend.forEach(a => {
     events.push({type:'abs', a, kwDate:a.datum_von, kw:getKW(a.datum_von)})
   })
   events.sort((a,b) => a.kwDate.localeCompare(b.kwDate))
@@ -737,11 +737,11 @@ async function renderApp() {
     events.forEach(ev => {
       const yr = new Date(toMs(ev.kwDate)).getFullYear()
       const key = `${yr}-${String(ev.kw).padStart(2,'0')}`
-      if (!groups[key]) groups[key] = {kw:ev.kw, yr, label:`KW ${ev.kw} · ${MOL[new Date(toMs(ev.kwDate)).getMonth()]} ${yr}`, items:[]}
+      if (!groups[key]) groups[key] = {kw:ev.kw, yr, first:ev.kwDate, label:`KW ${ev.kw} · ${MOL[new Date(toMs(ev.kwDate)).getMonth()]} ${yr}`, items:[]}
       groups[key].items.push(ev)
     })
 
-    Object.values(groups).sort((a,b) => a.kw - b.kw).forEach(grp => {
+    Object.values(groups).sort((a,b) => a.first.localeCompare(b.first)).forEach(grp => {
       html += `<div class="m-kw"><div class="m-kw-hdr">📅 <span>${escapeHtml(grp.label)}</span></div>`
       grp.items.forEach(ev => {
         if (ev.type === 'abs') {
@@ -820,6 +820,9 @@ async function renderApp() {
               x.datum_bis >= a.datum_von &&
               x.datum_von <= a.datum_bis
             ).sort((x,y) => x.datum_von.localeCompare(y.datum_von))
+  /* Nur kommende/laufende Eintraege anzeigen — vergangene Feiertage und
+     Abwesenheiten haben in der Vorschau keinen Nutzen. */
+  const myAbsKommend = myAbsMerged.filter(a => a.datum_bis >= today)
               .map(fa => {
                 const v = ALL_VEH.find(vv => vv.id === fa.fahrzeug_id)
                 if (!v) return null
