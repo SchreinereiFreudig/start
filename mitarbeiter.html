@@ -373,7 +373,10 @@ let MY_VACATIONS = []
 
 const toMs=s=>new Date(s+'T00:00:00').getTime()
 const toStr=ms=>{const d=new Date(ms);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-const addD=(s,n)=>toStr(toMs(s)+n*86400000)
+/* addD: KALENDER-basiert statt +24h-Millisekunden — am Ende der Sommerzeit
+   (25.10.2026, 25-Stunden-Tag) erzeugte die alte Variante ein Datum, das nie
+   weiterzaehlt -> Endlosschleife/Browser-Freeze. Gleicher Fix wie planung.html. */
+const addD=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 const today=toStr(Date.now())
 const getKW=s=>{const d=new Date(toMs(s));d.setHours(12);d.setDate(d.getDate()+4-(d.getDay()||7));return Math.ceil(((d-new Date(d.getFullYear(),0,1))/86400000+1)/7)}
 const fmtS=s=>{if(!s)return'';const d=new Date(toMs(s));return`${WD[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.`}
