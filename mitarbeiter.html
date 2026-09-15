@@ -663,6 +663,9 @@ async function renderApp() {
     return merged
   }
   const myAbsMerged = mergeAbs(myAbs)
+  /* Nur kommende/laufende Eintraege anzeigen — vergangene Feiertage und
+     Abwesenheiten haben in der Vorschau keinen Nutzen. */
+  const myAbsKommend = myAbsMerged.filter(a => a.datum_bis >= today)
 
   const projekte = new Set(myAss.map(a => a.project_id)).size
   const wochen = myAss.reduce((s,a) => {
@@ -820,9 +823,6 @@ async function renderApp() {
               x.datum_bis >= a.datum_von &&
               x.datum_von <= a.datum_bis
             ).sort((x,y) => x.datum_von.localeCompare(y.datum_von))
-  /* Nur kommende/laufende Eintraege anzeigen — vergangene Feiertage und
-     Abwesenheiten haben in der Vorschau keinen Nutzen. */
-  const myAbsKommend = myAbsMerged.filter(a => a.datum_bis >= today)
               .map(fa => {
                 const v = ALL_VEH.find(vv => vv.id === fa.fahrzeug_id)
                 if (!v) return null
